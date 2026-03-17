@@ -1,11 +1,5 @@
 <template>
-  <div>
-    <RouterLink to="/"> poop </RouterLink>
-
-    <RouterView />
-  </div>
+  <RouterView />
 </template>
 
 <script setup></script>
-
-<style scoped></style>

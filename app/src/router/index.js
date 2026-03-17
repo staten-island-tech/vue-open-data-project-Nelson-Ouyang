@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import CookieClicker from '@/views/CookieClicker.vue'
-import PokemonData from '@/views/PokemonData.vue'
+import cards from '@/views/cards.vue'
+import information from '@/views/information.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,12 +8,12 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: CookieClicker,
+      component: cards,
     },
     {
-      path: '/pkmn/:id',
-      name: 'pkmn',
-      component: PokemonData,
+      path: '/info/:id',
+      name: 'information',
+      component: information,
     },
   ],
 })

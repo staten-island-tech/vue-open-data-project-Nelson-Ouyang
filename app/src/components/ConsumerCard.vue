@@ -1,18 +1,14 @@
 <template>
   <div class="card">
-    <h2>{{ pokemon.name }}</h2>
-    <h3>{{ id }}</h3>
+    <h2>{{ place.account_name }}</h2>
+    <h3>{{ place.id }}</h3>
   </div>
 </template>
 
 <script setup>
 const props = defineProps({
-  pokemon: {
+  place: {
     type: Object,
-    required: true,
-  },
-  id: {
-    type: Number,
     required: true,
   },
 })
