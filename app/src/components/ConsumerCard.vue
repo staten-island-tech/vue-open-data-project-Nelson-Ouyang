@@ -1,34 +1,44 @@
 <template>
-  <div class="card">
+  <div class="card" @click="goToDetails">
     <h2>{{ place.account_name }}</h2>
-    <h3>{{ place.id }}</h3>
+    <p>UMIS ID: {{ place.umis_bill_id }}</p>
+    <p>Borough: {{ place.borough }}</p>
   </div>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
 const props = defineProps({
   place: {
     type: Object,
     required: true,
   },
 })
+
+function goToDetails() {
+  router.push(`/info/${props.place.umis_bill_id}`)
+}
 </script>
 
 <style scoped>
 .card {
   width: 28%;
-  height: 500px;
+  height: 200px;
   background-color: aliceblue;
-  margin: 30px 0;
+  margin: 20px 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  padding: 10px;
+  cursor: pointer;
   text-transform: uppercase;
+  transition: 0.2s;
 }
-img {
-  width: 100%;
-  height: 80%;
-  object-fit: cover;
+
+.card:hover {
+  background-color: lightblue;
 }
 </style>

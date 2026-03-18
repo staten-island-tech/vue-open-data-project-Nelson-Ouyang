@@ -1,28 +1,27 @@
 <template>
   <div class="container">
-    <ConsumerCard
-      v-for="(place, index) in consumer"
-      :key="place.umis_bill_id"
-      :place="{ ...place, id: index + 1 }"
-    />
-    <Information v-if="selectedConsumer" :consumer="selectedConsumer" />
+    <ConsumerCard v-for="place in consumers" :key="place.umis_bill_id" :place="place" />
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted } from 'vue'
-const consumer = ref([])
-async function getConsumer() {
+import ConsumerCard from '@/components/ConsumerCard.vue'
+
+const consumers = ref([])
+
+async function getConsumers() {
   try {
-    const response = await fetch('https://data.cityofnewyork.us/resource/jr24-e7cr.json')
-    const data = await response.json()
-    consumer.value = data
+    const response = await fetch('https://data.cityofnewyork.us/resource/jr24-e7cr.json?$limit=100')
+    if (!response.ok) throw new Error('Network error')
+
+    consumers.value = await response.json()
   } catch (error) {
     console.log(error)
   }
 }
-onMounted(() => {
-  getConsumer()
-})
+
+onMounted(getConsumers)
 </script>
 
 <style scoped>
@@ -31,8 +30,6 @@ onMounted(() => {
   margin: 30px auto;
   display: flex;
   flex-wrap: wrap;
-  flex-direction: row;
-  align-items: center;
   justify-content: space-around;
 }
 </style>
