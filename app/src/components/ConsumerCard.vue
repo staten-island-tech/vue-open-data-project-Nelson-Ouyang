@@ -27,7 +27,7 @@ function goToDetails() {
 .card {
   width: 28%;
   height: 200px;
-  background-color: aliceblue;
+  background-color: lightyellow;
   margin: 20px 0;
   display: flex;
   flex-direction: column;
