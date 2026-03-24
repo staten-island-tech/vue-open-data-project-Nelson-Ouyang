@@ -1,22 +1,16 @@
 <template>
   <div class="page">
-    <!-- Header -->
     <div class="header">
       <p class="eyebrow">NYC Housing Authority — Energy Billing</p>
       <h1>Energy consumption vs. kWh charges</h1>
       <p class="subtitle">Each point is one meter. Fetched live from NYC Open Data.</p>
     </div>
 
-    <!-- Loading -->
     <div v-if="loading" class="state-msg">Loading data...</div>
-
-    <!-- Error -->
     <div v-else-if="error" class="state-msg state-msg--error">{{ error }}</div>
 
     <template v-else>
-      <!-- Chart card -->
       <div class="card">
-        <!-- Borough filter pills -->
         <div class="filters">
           <button
             :class="['pill', activeBorough === null ? 'pill--all-active' : '']"
@@ -24,6 +18,7 @@
           >
             All boroughs
           </button>
+
           <button
             v-for="b in boroughs"
             :key="b"
@@ -40,7 +35,6 @@
           </button>
         </div>
 
-        <!-- SVG + tooltip -->
         <div ref="wrapperRef" class="chart-wrapper">
           <svg ref="svgRef" style="display: block; width: 100%" />
 
@@ -54,36 +48,43 @@
             <span class="tt-badge" :style="`background:${colorFor(tooltip.d.borough)}`">
               {{ capitalize(tooltip.d.borough) }}
             </span>
+
             <table class="tt-table">
-              <tr>
-                <td>Consumption</td>
-                <td>{{ Number(tooltip.d.consumption_kwh).toLocaleString() }} kWh</td>
-              </tr>
-              <tr>
-                <td>kWh charges</td>
-                <td>
-                  ${{
-                    Number(tooltip.d.kwh_charges).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })
-                  }}
-                </td>
-              </tr>
-              <tr>
-                <td>Rate</td>
-                <td>
-                  ${{
-                    (Number(tooltip.d.kwh_charges) / Number(tooltip.d.consumption_kwh)).toFixed(4)
-                  }}/kWh
-                </td>
-              </tr>
+              <tbody>
+                <tr>
+                  <td>Consumption</td>
+                  <td>{{ Number(tooltip.d.consumption_kwh).toLocaleString() }} kWh</td>
+                </tr>
+                <tr>
+                  <td>kWh charges</td>
+                  <td>
+                    ${{
+                      Number(tooltip.d.kwh_charges).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    }}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Rate</td>
+                  <td>
+                    {{
+                      Number(tooltip.d.consumption_kwh) > 0
+                        ? '$' +
+                          (
+                            Number(tooltip.d.kwh_charges) / Number(tooltip.d.consumption_kwh)
+                          ).toFixed(4)
+                        : '—'
+                    }}/kWh
+                  </td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- Summary cards -->
       <div class="summary-grid">
         <div v-for="m in summaryCards" :key="m.label" class="metric-card">
           <div class="metric-label">{{ m.label }}</div>
@@ -98,17 +99,15 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import * as d3 from 'd3'
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-
 const consumers = ref([])
 const loading = ref(true)
 const error = ref(null)
 
 async function getConsumers() {
   try {
-    const response = await fetch('https://data.cityofnewyork.us/resource/jr24-e7cr.json?$limit=500')
-    if (!response.ok) throw new Error('Network error')
-    consumers.value = await response.json()
+    const res = await fetch('https://data.cityofnewyork.us/resource/jr24-e7cr.json?$limit=50000')
+    if (!res.ok) throw new Error('Network error')
+    consumers.value = await res.json()
   } catch (err) {
     error.value = 'Failed to load data: ' + err.message
   } finally {
@@ -118,27 +117,19 @@ async function getConsumers() {
 
 onMounted(getConsumers)
 
-// Only rows with valid numeric kWh consumption & charges
 const validData = computed(() =>
   consumers.value.filter((d) => Number(d.consumption_kwh) > 0 && Number(d.kwh_charges) > 0),
 )
-
-// ── Borough colors ────────────────────────────────────────────────────────────
-
-const PALETTE = ['#378ADD', '#1D9E75', '#D85A30', '#BA7517', '#8B5CF6', '#EC4899']
 
 const boroughs = computed(() =>
   [...new Set(validData.value.map((d) => d.borough).filter(Boolean))].sort(),
 )
 
-const colorFor = (borough) => {
-  const idx = boroughs.value.indexOf(borough)
-  return PALETTE[idx % PALETTE.length]
-}
+const PALETTE = ['#378ADD', '#1D9E75', '#D85A30', '#BA7517', '#8B5CF6', '#EC4899']
 
-const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '')
+const colorFor = (b) => PALETTE[boroughs.value.indexOf(b) % PALETTE.length]
 
-// ── Filter state ──────────────────────────────────────────────────────────────
+const capitalize = (s) => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : '')
 
 const activeBorough = ref(null)
 
@@ -148,31 +139,23 @@ const filteredData = computed(() =>
     : validData.value,
 )
 
-// ── Summary cards ─────────────────────────────────────────────────────────────
-
 const summaryCards = computed(() => {
   const totalKwh = d3.sum(validData.value, (d) => Number(d.consumption_kwh))
   const totalCharges = d3.sum(validData.value, (d) => Number(d.kwh_charges))
+
   return [
     { label: 'Meters shown', value: validData.value.length },
     { label: 'Total kWh', value: totalKwh.toLocaleString() },
     {
       label: 'Total kWh charges',
-      value:
-        '$' +
-        totalCharges.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
+      value: '$' + totalCharges.toLocaleString(),
     },
     {
       label: 'Avg rate',
-      value: '$' + (totalCharges / totalKwh).toFixed(4) + '/kWh',
+      value: totalKwh > 0 ? '$' + (totalCharges / totalKwh).toFixed(4) : '—',
     },
   ]
 })
-
-// ── Chart ─────────────────────────────────────────────────────────────────────
 
 const svgRef = ref(null)
 const wrapperRef = ref(null)
@@ -188,24 +171,19 @@ function drawChart() {
   const innerW = width - MARGIN.left - MARGIN.right
   const innerH = height - MARGIN.top - MARGIN.bottom
   const data = filteredData.value
+  if (!data.length) return
 
-  // Always base scales on full dataset so axes don't jump when filtering
   const allX = validData.value.map((d) => Number(d.consumption_kwh))
   const allY = validData.value.map((d) => Number(d.kwh_charges))
-  const xPad = (d3.max(allX) - d3.min(allX)) * 0.06
-  const yPad = (d3.max(allY) - d3.min(allY)) * 0.06
 
   const xScale = d3
     .scaleLinear()
-    .domain([Math.max(0, d3.min(allX) - xPad), d3.max(allX) + xPad])
+    .domain([0, d3.max(allX)])
     .range([0, innerW])
-    .nice()
-
   const yScale = d3
     .scaleLinear()
-    .domain([Math.max(0, d3.min(allY) - yPad), d3.max(allY) + yPad])
+    .domain([0, d3.max(allY)])
     .range([innerH, 0])
-    .nice()
 
   const svg = d3.select(svgRef.value)
   svg.selectAll('*').remove()
@@ -213,85 +191,12 @@ function drawChart() {
 
   const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`)
 
-  // Grid lines
-  g.append('g')
-    .call(d3.axisLeft(yScale).tickSize(-innerW).tickFormat('').ticks(6))
-    .call((s) => s.select('.domain').remove())
-    .call((s) =>
-      s.selectAll('line').attr('stroke', 'rgba(128,128,128,0.12)').attr('stroke-dasharray', '3,3'),
-    )
+  // axes
+  g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(xScale))
 
-  g.append('g')
-    .attr('transform', `translate(0,${innerH})`)
-    .call(d3.axisBottom(xScale).tickSize(-innerH).tickFormat('').ticks(6))
-    .call((s) => s.select('.domain').remove())
-    .call((s) =>
-      s.selectAll('line').attr('stroke', 'rgba(128,128,128,0.12)').attr('stroke-dasharray', '3,3'),
-    )
+  g.append('g').call(d3.axisLeft(yScale))
 
-  // X axis
-  const xAxis = g
-    .append('g')
-    .attr('transform', `translate(0,${innerH})`)
-    .call(
-      d3
-        .axisBottom(xScale)
-        .ticks(6)
-        .tickFormat((v) => `${(v / 1000).toFixed(0)}k`),
-    )
-  xAxis.select('.domain').attr('stroke', 'rgba(128,128,128,0.25)')
-  xAxis.selectAll('line').attr('stroke', 'rgba(128,128,128,0.25)')
-  xAxis.selectAll('text').attr('fill', '#888').style('font-size', '12px')
-
-  // Y axis
-  const yAxis = g.append('g').call(
-    d3
-      .axisLeft(yScale)
-      .ticks(6)
-      .tickFormat((v) => `$${(v / 1000).toFixed(1)}k`),
-  )
-  yAxis.select('.domain').attr('stroke', 'rgba(128,128,128,0.25)')
-  yAxis.selectAll('line').attr('stroke', 'rgba(128,128,128,0.25)')
-  yAxis.selectAll('text').attr('fill', '#888').style('font-size', '12px')
-
-  // Axis labels
-  g.append('text')
-    .attr('x', innerW / 2)
-    .attr('y', innerH + 46)
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#888')
-    .style('font-size', '13px')
-    .text('Energy consumption (kWh)')
-
-  g.append('text')
-    .attr('transform', 'rotate(-90)')
-    .attr('x', -innerH / 2)
-    .attr('y', -54)
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#888')
-    .style('font-size', '13px')
-    .text('kWh charges ($)')
-
-  // Trend line (linear regression over filtered set)
-  if (data.length > 1) {
-    const meanX = d3.mean(data, (d) => Number(d.consumption_kwh))
-    const meanY = d3.mean(data, (d) => Number(d.kwh_charges))
-    const slope =
-      d3.sum(data, (d) => (Number(d.consumption_kwh) - meanX) * (Number(d.kwh_charges) - meanY)) /
-      d3.sum(data, (d) => (Number(d.consumption_kwh) - meanX) ** 2)
-    const intercept = meanY - slope * meanX
-    const [x0, x1] = xScale.domain()
-    g.append('line')
-      .attr('x1', xScale(x0))
-      .attr('y1', yScale(slope * x0 + intercept))
-      .attr('x2', xScale(x1))
-      .attr('y2', yScale(slope * x1 + intercept))
-      .attr('stroke', 'rgba(128,128,128,0.35)')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '6,3')
-  }
-
-  // Dots
+  // dots
   g.selectAll('circle')
     .data(data)
     .join('circle')
@@ -299,36 +204,14 @@ function drawChart() {
     .attr('cy', (d) => yScale(Number(d.kwh_charges)))
     .attr('r', 6)
     .attr('fill', (d) => colorFor(d.borough))
-    .attr('fill-opacity', 0.82)
-    .attr('stroke', '#fff')
-    .attr('stroke-width', 1.2)
-    .style('cursor', 'pointer')
-    .on('mouseenter', function (event, d) {
-      d3.select(this).attr('r', 9).attr('fill-opacity', 1)
-      const rect = svgRef.value.getBoundingClientRect()
-      tooltip.value = { x: event.clientX - rect.left, y: event.clientY - rect.top, d }
-    })
-    .on('mousemove', function (event) {
-      const rect = svgRef.value.getBoundingClientRect()
-      if (tooltip.value) {
-        tooltip.value = {
-          ...tooltip.value,
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top,
-        }
-      }
-    })
-    .on('mouseleave', function () {
-      d3.select(this).attr('r', 6).attr('fill-opacity', 0.82)
-      tooltip.value = null
-    })
 }
 
 let ro
 onMounted(() => {
+  if (!wrapperRef.value) return
   ro = new ResizeObserver((entries) => {
     const { width } = entries[0].contentRect
-    dims.value = { width: Math.max(width, 320), height: Math.max(width * 0.56, 320) }
+    dims.value = { width, height: width * 0.56 }
   })
   ro.observe(wrapperRef.value)
 })
