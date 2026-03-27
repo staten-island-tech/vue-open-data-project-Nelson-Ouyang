@@ -1,4 +1,5 @@
 <template>
+  <h1>For plots, go switch routes</h1>
   <div class="container">
     <ConsumerCard v-for="place in consumers" :key="place.umis_bill_id" :place="place" />
   </div>
